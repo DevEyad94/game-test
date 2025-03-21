@@ -74,6 +74,17 @@
             font-family: monospace;
         }
         
+        #gpu-status {
+            position: absolute;
+            top: 40px;
+            left: 10px;
+            background-color: rgba(0, 0, 0, 0.5);
+            color: white;
+            padding: 5px 10px;
+            border-radius: 5px;
+            font-family: monospace;
+        }
+        
         /* Settings Panel */
         #settings-button {
             position: absolute;
@@ -129,12 +140,45 @@
         #settings-panel button:hover {
             background-color: #45a049;
         }
+        #controls-hint {
+            position: absolute;
+            bottom: 80px;
+            left: 50%;
+            transform: translateX(-50%);
+            background-color: rgba(0, 0, 0, 0.5);
+            color: white;
+            padding: 10px;
+            border-radius: 5px;
+            font-family: monospace;
+            text-align: center;
+            display: flex;
+            flex-direction: column;
+            gap: 5px;
+            font-size: 14px;
+        }
+        #controls-hint div {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+        .key {
+            display: inline-block;
+            width: 30px;
+            height: 30px;
+            background-color: rgba(255, 255, 255, 0.2);
+            border: 2px solid rgba(255, 255, 255, 0.5);
+            border-radius: 5px;
+            text-align: center;
+            line-height: 30px;
+            font-weight: bold;
+        }
     </style>
 </head>
 <body>
     <div id="game-container"></div>
     <div id="crosshair"></div>
     <div id="fps-counter">FPS: 0</div>
+    <div id="gpu-status">GPU Status: Unknown</div>
     <button id="settings-button">Settings</button>
     
     <div id="settings-panel">
@@ -161,6 +205,18 @@
                 <option value="high">High</option>
             </select>
         </div>
+        <div class="setting-row">
+            <label>Force GPU Acceleration:</label>
+            <select id="force-gpu">
+                <option value="auto" selected>Auto-detect</option>
+                <option value="force">Force GPU (Chrome)</option>
+            </select>
+        </div>
+        <div class="setting-row">
+            <label for="jump-height">Jump Height:</label>
+            <input type="range" id="jump-height" min="10" max="50" value="30">
+            <span id="jump-height-value">30</span>
+        </div>
         <button id="apply-settings">Apply & Restart</button>
         <button id="close-settings">Close</button>
     </div>
@@ -173,6 +229,15 @@
         <div class="inventory-slot" data-block="leaves"></div>
     </div>
     
+    <div id="controls-hint">
+        <div><span class="key">W</span> <span>Forward</span></div>
+        <div><span class="key">A</span> <span>Left</span></div>
+        <div><span class="key">S</span> <span>Backward</span></div>
+        <div><span class="key">D</span> <span>Right</span></div>
+        <div><span class="key" style="width: 60px;">Space</span> <span>Jump</span></div>
+        <div><span class="key">H</span> <span>Toggle Controls</span></div>
+    </div>
+    
     <script type="importmap">
         {
             "imports": {
@@ -180,6 +245,94 @@
                 "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.157.0/examples/jsm/"
             }
         }
+    </script>
+    <script type="module">
+        // Settings UI handling
+        document.addEventListener('DOMContentLoaded', () => {
+            const settingsButton = document.getElementById('settings-button');
+            const settingsPanel = document.getElementById('settings-panel');
+            const closeButton = document.getElementById('close-settings');
+            const applyButton = document.getElementById('apply-settings');
+            const renderDistanceSlider = document.getElementById('render-distance');
+            const renderDistanceValue = document.getElementById('render-distance-value');
+            const jumpHeightSlider = document.getElementById('jump-height');
+            const jumpHeightValue = document.getElementById('jump-height-value');
+            const worldSizeSelect = document.getElementById('world-size');
+            const graphicsQualitySelect = document.getElementById('graphics-quality');
+            const forceGPUSelect = document.getElementById('force-gpu');
+            
+            // Update render distance value display
+            renderDistanceSlider.addEventListener('input', () => {
+                renderDistanceValue.textContent = renderDistanceSlider.value;
+            });
+            
+            // Update jump height value display
+            jumpHeightSlider.addEventListener('input', () => {
+                jumpHeightValue.textContent = jumpHeightSlider.value;
+            });
+            
+            // Show/hide settings panel
+            settingsButton.addEventListener('click', () => {
+                settingsPanel.style.display = 'block';
+            });
+            
+            closeButton.addEventListener('click', () => {
+                settingsPanel.style.display = 'none';
+            });
+            
+            // Apply settings
+            applyButton.addEventListener('click', () => {
+                // Save render distance
+                localStorage.setItem('render-distance', renderDistanceSlider.value);
+                
+                // Save world size
+                localStorage.setItem('world-size', worldSizeSelect.value);
+                
+                // Save graphics quality
+                localStorage.setItem('graphics-quality', graphicsQualitySelect.value);
+                
+                // Save jump height (as a percentage value from 0.1 to 0.5)
+                const jumpHeight = parseInt(jumpHeightSlider.value) / 100;
+                localStorage.setItem('jump-height', jumpHeight.toString());
+                
+                // Save GPU forcing option
+                localStorage.setItem('force-gpu', 
+                    forceGPUSelect.value === 'force' ? 'true' : 'false');
+                
+                // Reload to apply settings
+                location.reload();
+            });
+            
+            // Initialize with saved values if available
+            const savedRenderDistance = localStorage.getItem('render-distance');
+            if (savedRenderDistance) {
+                renderDistanceSlider.value = savedRenderDistance;
+                renderDistanceValue.textContent = savedRenderDistance;
+            }
+            
+            const savedJumpHeight = localStorage.getItem('jump-height');
+            if (savedJumpHeight) {
+                // Convert back from decimal (0.1-0.5) to slider range (10-50)
+                const jumpHeightValue = Math.round(parseFloat(savedJumpHeight) * 100);
+                jumpHeightSlider.value = jumpHeightValue;
+                jumpHeightValue.textContent = jumpHeightValue;
+            }
+            
+            const savedWorldSize = localStorage.getItem('world-size');
+            if (savedWorldSize) {
+                worldSizeSelect.value = savedWorldSize;
+            }
+            
+            const savedGraphicsQuality = localStorage.getItem('graphics-quality');
+            if (savedGraphicsQuality) {
+                graphicsQualitySelect.value = savedGraphicsQuality;
+            }
+            
+            const forcedGPU = localStorage.getItem('force-gpu');
+            if (forcedGPU === 'true') {
+                forceGPUSelect.value = 'force';
+            }
+        });
     </script>
     <script type="module" src="js/main.js"></script>
 </body>

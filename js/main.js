@@ -1,14 +1,24 @@
 import * as THREE from 'three';
 import { PointerLockControls } from 'three/addons/controls/PointerLockControls.js';
+import GPUHelper from './gpu-helper.js';
+import CONFIG from './config.js';
+
+// Check for force GPU setting in localStorage
+const forceGPU = localStorage.getItem('force-gpu') === 'true';
+if (forceGPU) {
+    console.log('Force GPU rendering is enabled');
+    GPUHelper.forceGPURendering();
+    GPUHelper.addGPUStyles();
+}
 
 // Constants
-const WORLD_SIZE = 8; // Reduced world size from 16 to 8 chunks
-const CHUNK_SIZE = 16; // Chunk size
-const BLOCK_SIZE = 1;  // Block size
-const GRAVITY = 0.08;  // Gravity force
-const JUMP_FORCE = 0.5; // Jump force
-const MOVEMENT_SPEED = 0.15; // Movement speed (increased from 0.1)
-const RENDER_DISTANCE = 40; // Added render distance constant
+const WORLD_SIZE = parseInt(localStorage.getItem('world-size')) || CONFIG.WORLD_SIZE;
+const CHUNK_SIZE = CONFIG.CHUNK_SIZE;
+const BLOCK_SIZE = CONFIG.BLOCK_SIZE;
+const GRAVITY = CONFIG.GRAVITY;
+const JUMP_FORCE = parseFloat(localStorage.getItem('jump-height')) || CONFIG.JUMP_FORCE;
+const MOVEMENT_SPEED = CONFIG.MOVEMENT_SPEED;
+const RENDER_DISTANCE = parseInt(localStorage.getItem('render-distance')) || CONFIG.RENDER_DISTANCE;
 
 // Game state
 const state = {
@@ -22,6 +32,7 @@ const state = {
     mouse: new THREE.Vector2(),
     inventory: ['grass', 'dirt', 'stone', 'wood', 'leaves'],
     selectedInventoryIndex: 0,
+    isJumping: false,
 };
 
 // Setup scene, camera, and renderer
@@ -29,9 +40,16 @@ const scene = new THREE.Scene();
 const camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 150);
 camera.position.set(WORLD_SIZE * CHUNK_SIZE / 2, 30, WORLD_SIZE * CHUNK_SIZE / 2);
 
-const renderer = new THREE.WebGLRenderer({ antialias: false });
+const renderer = new THREE.WebGLRenderer({ 
+    antialias: false,
+    powerPreference: "high-performance", // Explicitly request high-performance GPU
+    precision: "mediump",  // Use medium precision for better performance
+    alpha: false, // Disable alpha for better performance
+    stencil: false, // Disable stencil buffer for better performance
+    depth: true // Keep depth testing enabled
+});
 renderer.setSize(window.innerWidth, window.innerHeight);
-renderer.setPixelRatio(Math.min(window.devicePixelRatio, 1.5));
+renderer.setPixelRatio(Math.min(window.devicePixelRatio, 1.0)); // Lower pixel ratio for better performance
 renderer.shadowMap.enabled = false;
 document.getElementById('game-container').appendChild(renderer.domElement);
 
@@ -316,12 +334,12 @@ function checkCollision(position) {
     
     // Check for blocks at these offsets from the player's position
     const offsets = [
-        // Bottom collisions (feet)
+        // Bottom collisions (feet) - check multiple points for smoother landing
         { x: 0, y: -playerSize.height / 2 - margin, z: 0 },
-        { x: playerSize.width / 2 - margin, y: -playerSize.height / 2 - margin, z: 0 },
-        { x: -playerSize.width / 2 + margin, y: -playerSize.height / 2 - margin, z: 0 },
-        { x: 0, y: -playerSize.height / 2 - margin, z: playerSize.depth / 2 - margin },
-        { x: 0, y: -playerSize.height / 2 - margin, z: -playerSize.depth / 2 + margin },
+        { x: playerSize.width / 3, y: -playerSize.height / 2 - margin, z: 0 },
+        { x: -playerSize.width / 3, y: -playerSize.height / 2 - margin, z: 0 },
+        { x: 0, y: -playerSize.height / 2 - margin, z: playerSize.depth / 3 },
+        { x: 0, y: -playerSize.height / 2 - margin, z: -playerSize.depth / 3 },
         
         // Top collisions (head)
         { x: 0, y: playerSize.height / 2 + margin, z: 0 },
@@ -331,6 +349,12 @@ function checkCollision(position) {
         { x: -playerSize.width / 2 - margin, y: 0, z: 0 },
         { x: 0, y: 0, z: playerSize.depth / 2 + margin },
         { x: 0, y: 0, z: -playerSize.depth / 2 - margin },
+        
+        // Additional side points to prevent getting stuck in corners
+        { x: playerSize.width / 2 + margin, y: 0, z: playerSize.depth / 2 + margin },
+        { x: -playerSize.width / 2 - margin, y: 0, z: playerSize.depth / 2 + margin },
+        { x: playerSize.width / 2 + margin, y: 0, z: -playerSize.depth / 2 - margin },
+        { x: -playerSize.width / 2 - margin, y: 0, z: -playerSize.depth / 2 - margin },
     ];
     
     const collisions = {
@@ -433,6 +457,24 @@ function handleKeyDown(event) {
             });
         }
     }
+    
+    // Hide controls hint after any key press
+    if (event.code === 'KeyW' || event.code === 'KeyA' || 
+        event.code === 'KeyS' || event.code === 'KeyD' || 
+        event.code === 'Space') {
+        const controlsHint = document.getElementById('controls-hint');
+        if (controlsHint) {
+            controlsHint.style.display = 'none';
+        }
+    }
+    
+    // Toggle controls hint with H key
+    if (event.code === 'KeyH') {
+        const controlsHint = document.getElementById('controls-hint');
+        if (controlsHint) {
+            controlsHint.style.display = controlsHint.style.display === 'none' ? 'flex' : 'none';
+        }
+    }
 }
 
 function handleKeyUp(event) {
@@ -468,15 +510,20 @@ function updatePlayer(deltaTime) {
     // Apply gravity
     if (!state.playerOnGround) {
         state.playerVelocity.y -= GRAVITY * deltaTime;
+        
+        // Cap falling speed to prevent falling through blocks at high speeds
+        if (state.playerVelocity.y < -0.8) {
+            state.playerVelocity.y = -0.8;
+        }
     }
     
     // Get movement direction from keys
     const moveDirection = new THREE.Vector3(0, 0, 0);
     
-    if (state.keysPressed['KeyW']) moveDirection.z -= 1;
-    if (state.keysPressed['KeyS']) moveDirection.z += 1;
-    if (state.keysPressed['KeyA']) moveDirection.x -= 1;
-    if (state.keysPressed['KeyD']) moveDirection.x += 1;
+    if (state.keysPressed['KeyW']) moveDirection.z -= 1; // Forward
+    if (state.keysPressed['KeyS']) moveDirection.z += 1; // Backward
+    if (state.keysPressed['KeyA']) moveDirection.x += 1; // Right (was Left, now reversed)
+    if (state.keysPressed['KeyD']) moveDirection.x -= 1; // Left (was Right, now reversed)
     
     if (moveDirection.length() > 0) {
         moveDirection.normalize();
@@ -489,17 +536,22 @@ function updatePlayer(deltaTime) {
         
         const cameraRight = new THREE.Vector3().crossVectors(
             new THREE.Vector3(0, 1, 0), cameraDirection
-        );
+        ).normalize();
         
-        const adjustedDirection = new THREE.Vector3()
-            .addScaledVector(cameraDirection, -moveDirection.z)
-            .addScaledVector(cameraRight, moveDirection.x);
+        // Build movement vector from camera's forward and right vectors
+        const adjustedDirection = new THREE.Vector3();
+        adjustedDirection.addScaledVector(cameraDirection, -moveDirection.z); // Forward/backward
+        adjustedDirection.addScaledVector(cameraRight, moveDirection.x);     // Left/right
         
-        adjustedDirection.normalize();
-        
-        // Apply movement with speed
-        state.playerVelocity.x = adjustedDirection.x * MOVEMENT_SPEED;
-        state.playerVelocity.z = adjustedDirection.z * MOVEMENT_SPEED;
+        if (adjustedDirection.length() > 0) {
+            adjustedDirection.normalize();
+            
+            // Apply movement with speed
+            // Slow down a bit in the air for better control
+            const speedMultiplier = state.playerOnGround ? 1.0 : 0.8;
+            state.playerVelocity.x = adjustedDirection.x * MOVEMENT_SPEED * speedMultiplier;
+            state.playerVelocity.z = adjustedDirection.z * MOVEMENT_SPEED * speedMultiplier;
+        }
     } else {
         // Friction when not moving
         state.playerVelocity.x = 0;
@@ -507,9 +559,14 @@ function updatePlayer(deltaTime) {
     }
     
     // Handle jumping
-    if (state.keysPressed['Space'] && state.playerOnGround) {
-        state.playerVelocity.y = JUMP_FORCE;
-        state.playerOnGround = false;
+    if (state.keysPressed['Space']) {
+        if (state.playerOnGround && !state.isJumping) {
+            state.playerVelocity.y = JUMP_FORCE;
+            state.playerOnGround = false;
+            state.isJumping = true; // Prevent double-jumping by holding space
+        }
+    } else {
+        state.isJumping = false; // Reset jump flag when space key is released
     }
     
     // Calculate new position
@@ -561,6 +618,40 @@ let frameCount = 0;
 let fpsTime = 0;
 let fps = 0;
 
+// Add GPU status detection after renderer initialization
+function checkGPUStatus() {
+    const gl = renderer.getContext();
+    let gpuInfo = "Unknown";
+    
+    const debugInfo = gl.getExtension('WEBGL_debug_renderer_info');
+    if (debugInfo) {
+        const vendor = gl.getParameter(debugInfo.UNMASKED_VENDOR_WEBGL);
+        const renderer = gl.getParameter(debugInfo.UNMASKED_RENDERER_WEBGL);
+        
+        gpuInfo = `${vendor} - ${renderer}`;
+        
+        // Look for indicators of GPU usage
+        const isGPU = /(nvidia|amd|radeon|intel|apple gpu)/i.test(gpuInfo.toLowerCase());
+        
+        // Display status
+        const gpuStatus = document.getElementById('gpu-status');
+        if (gpuStatus) {
+            gpuStatus.textContent = `GPU: ${isGPU ? '✓ ' : '✗ '}${gpuInfo.split(' ')[0]}`;
+            gpuStatus.style.color = isGPU ? '#8eff8e' : '#ff8e8e';
+        }
+        
+        console.log('GPU Info:', gpuInfo);
+        console.log('Using dedicated GPU:', isGPU);
+    } else {
+        console.warn('WebGL debug info not available');
+        document.getElementById('gpu-status').textContent = 'GPU Status: Info not available';
+    }
+}
+
+// Check GPU status after setup
+checkGPUStatus();
+
+// Update performance info in the animation loop
 function animate(time) {
     requestAnimationFrame(animate);
     
@@ -576,6 +667,12 @@ function animate(time) {
     if (fpsTime >= 1.0) {
         fps = Math.round(frameCount / fpsTime);
         document.getElementById('fps-counter').textContent = `FPS: ${fps}`;
+        
+        // Add performance indicators
+        const performanceLevel = fps > 50 ? 'excellent' : (fps > 30 ? 'good' : 'poor');
+        document.getElementById('fps-counter').style.color = 
+            fps > 50 ? '#8eff8e' : (fps > 30 ? '#ffff8e' : '#ff8e8e');
+            
         frameCount = 0;
         fpsTime = 0;
     }
