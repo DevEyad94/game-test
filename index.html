@@ -1,0 +1,186 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Minecraft Clone</title>
+    <style>
+        body { 
+            margin: 0; 
+            overflow: hidden; 
+            font-family: 'Minecraft', Arial, sans-serif;
+        }
+        #game-container { 
+            position: absolute; 
+            width: 100%; 
+            height: 100%; 
+        }
+        #crosshair {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            width: 20px;
+            height: 20px;
+            transform: translate(-50%, -50%);
+            pointer-events: none;
+        }
+        #crosshair::before, #crosshair::after {
+            content: "";
+            position: absolute;
+            background-color: white;
+        }
+        #crosshair::before {
+            width: 2px;
+            height: 20px;
+            left: 9px;
+        }
+        #crosshair::after {
+            width: 20px;
+            height: 2px;
+            top: 9px;
+        }
+        #inventory {
+            position: absolute;
+            bottom: 10px;
+            left: 50%;
+            transform: translateX(-50%);
+            display: flex;
+            gap: 5px;
+            padding: 5px;
+            background-color: rgba(0, 0, 0, 0.5);
+            border-radius: 5px;
+        }
+        .inventory-slot {
+            width: 50px;
+            height: 50px;
+            background-color: rgba(255, 255, 255, 0.2);
+            border: 2px solid rgba(255, 255, 255, 0.5);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+        .inventory-slot.selected {
+            border-color: white;
+            background-color: rgba(255, 255, 255, 0.4);
+        }
+        #fps-counter {
+            position: absolute;
+            top: 10px;
+            left: 10px;
+            background-color: rgba(0, 0, 0, 0.5);
+            color: white;
+            padding: 5px 10px;
+            border-radius: 5px;
+            font-family: monospace;
+        }
+        
+        /* Settings Panel */
+        #settings-button {
+            position: absolute;
+            top: 10px;
+            right: 10px;
+            background-color: rgba(0, 0, 0, 0.5);
+            color: white;
+            padding: 5px 10px;
+            border-radius: 5px;
+            cursor: pointer;
+            font-family: monospace;
+            border: none;
+        }
+        #settings-panel {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            background-color: rgba(0, 0, 0, 0.8);
+            color: white;
+            padding: 20px;
+            border-radius: 10px;
+            min-width: 300px;
+            display: none;
+            z-index: 1000;
+        }
+        #settings-panel h2 {
+            text-align: center;
+            margin-top: 0;
+        }
+        .setting-row {
+            margin: 10px 0;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        .setting-row label {
+            margin-right: 10px;
+        }
+        .setting-row input, .setting-row select {
+            width: 100px;
+        }
+        #settings-panel button {
+            display: block;
+            margin: 20px auto 0;
+            padding: 8px 15px;
+            background-color: #4CAF50;
+            border: none;
+            color: white;
+            border-radius: 5px;
+            cursor: pointer;
+        }
+        #settings-panel button:hover {
+            background-color: #45a049;
+        }
+    </style>
+</head>
+<body>
+    <div id="game-container"></div>
+    <div id="crosshair"></div>
+    <div id="fps-counter">FPS: 0</div>
+    <button id="settings-button">Settings</button>
+    
+    <div id="settings-panel">
+        <h2>Performance Settings</h2>
+        <div class="setting-row">
+            <label for="render-distance">Render Distance:</label>
+            <input type="range" id="render-distance" min="20" max="80" value="40">
+            <span id="render-distance-value">40</span>
+        </div>
+        <div class="setting-row">
+            <label for="world-size">World Size:</label>
+            <select id="world-size">
+                <option value="4">Small (4)</option>
+                <option value="8" selected>Medium (8)</option>
+                <option value="12">Large (12)</option>
+                <option value="16">Huge (16)</option>
+            </select>
+        </div>
+        <div class="setting-row">
+            <label>Graphics Quality:</label>
+            <select id="graphics-quality">
+                <option value="low" selected>Low</option>
+                <option value="medium">Medium</option>
+                <option value="high">High</option>
+            </select>
+        </div>
+        <button id="apply-settings">Apply & Restart</button>
+        <button id="close-settings">Close</button>
+    </div>
+    
+    <div id="inventory">
+        <div class="inventory-slot selected" data-block="grass"></div>
+        <div class="inventory-slot" data-block="dirt"></div>
+        <div class="inventory-slot" data-block="stone"></div>
+        <div class="inventory-slot" data-block="wood"></div>
+        <div class="inventory-slot" data-block="leaves"></div>
+    </div>
+    
+    <script type="importmap">
+        {
+            "imports": {
+                "three": "https://cdn.jsdelivr.net/npm/three@0.157.0/build/three.module.js",
+                "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.157.0/examples/jsm/"
+            }
+        }
+    </script>
+    <script type="module" src="js/main.js"></script>
+</body>
+</html> 

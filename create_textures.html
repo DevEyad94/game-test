@@ -1,0 +1,345 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Minecraft Texture Generator</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+        canvas {
+            border: 1px solid #ccc;
+            margin: 10px;
+        }
+        .textures {
+            display: flex;
+            flex-wrap: wrap;
+            justify-content: center;
+        }
+        .texture-container {
+            margin: 15px;
+            text-align: center;
+        }
+        button {
+            background-color: #4CAF50;
+            border: none;
+            color: white;
+            padding: 15px 32px;
+            text-align: center;
+            text-decoration: none;
+            display: inline-block;
+            font-size: 16px;
+            margin: 10px 2px;
+            cursor: pointer;
+            border-radius: 5px;
+        }
+        h1, h2 {
+            text-align: center;
+        }
+    </style>
+</head>
+<body>
+    <h1>Minecraft Texture Generator</h1>
+    <p>This tool generates simple placeholder textures for the Minecraft clone. Click the button below to generate all textures, and then right-click each texture to save it to the 'textures' folder.</p>
+    
+    <div style="text-align: center;">
+        <button id="generate-all">Generate All Textures</button>
+    </div>
+    
+    <div class="textures">
+        <div class="texture-container">
+            <h3>Grass Top</h3>
+            <canvas id="grass-top" width="64" height="64"></canvas>
+            <p>Right-click to save as 'grass_top.jpg'</p>
+        </div>
+        
+        <div class="texture-container">
+            <h3>Grass Side</h3>
+            <canvas id="grass-side" width="64" height="64"></canvas>
+            <p>Right-click to save as 'grass_side.jpg'</p>
+        </div>
+        
+        <div class="texture-container">
+            <h3>Dirt</h3>
+            <canvas id="dirt" width="64" height="64"></canvas>
+            <p>Right-click to save as 'dirt.jpg'</p>
+        </div>
+        
+        <div class="texture-container">
+            <h3>Stone</h3>
+            <canvas id="stone" width="64" height="64"></canvas>
+            <p>Right-click to save as 'stone.jpg'</p>
+        </div>
+        
+        <div class="texture-container">
+            <h3>Wood Top</h3>
+            <canvas id="wood-top" width="64" height="64"></canvas>
+            <p>Right-click to save as 'wood_top.jpg'</p>
+        </div>
+        
+        <div class="texture-container">
+            <h3>Wood Side</h3>
+            <canvas id="wood-side" width="64" height="64"></canvas>
+            <p>Right-click to save as 'wood_side.jpg'</p>
+        </div>
+        
+        <div class="texture-container">
+            <h3>Leaves</h3>
+            <canvas id="leaves" width="64" height="64"></canvas>
+            <p>Right-click to save as 'leaves.jpg'</p>
+        </div>
+    </div>
+    
+    <h2>Instructions</h2>
+    <ol>
+        <li>Click "Generate All Textures" to create pixelated Minecraft-style textures</li>
+        <li>Right-click on each texture and select "Save Image As..."</li>
+        <li>Save each texture with the specified name to your 'textures' folder</li>
+        <li>Once all textures are saved, you can close this page and run the game</li>
+    </ol>
+    
+    <script>
+        // Function to generate noise
+        function noise(ctx, baseColor, noiseColor, noiseAmount) {
+            const imageData = ctx.getImageData(0, 0, ctx.canvas.width, ctx.canvas.height);
+            const data = imageData.data;
+            
+            for (let i = 0; i < data.length; i += 4) {
+                const noise = Math.random() * noiseAmount - noiseAmount / 2;
+                
+                data[i] = Math.max(0, Math.min(255, baseColor[0] + noise * (noiseColor[0] - baseColor[0])));
+                data[i + 1] = Math.max(0, Math.min(255, baseColor[1] + noise * (noiseColor[1] - baseColor[1])));
+                data[i + 2] = Math.max(0, Math.min(255, baseColor[2] + noise * (noiseColor[2] - baseColor[2])));
+                data[i + 3] = 255; // Full opacity
+            }
+            
+            ctx.putImageData(imageData, 0, 0);
+        }
+        
+        // Function to generate pixelated noise (Minecraft-style)
+        function pixelatedNoise(ctx, baseColor, noiseColor, noiseAmount, pixelSize = 4) {
+            const width = ctx.canvas.width;
+            const height = ctx.canvas.height;
+            
+            ctx.fillStyle = `rgb(${baseColor[0]}, ${baseColor[1]}, ${baseColor[2]})`;
+            ctx.fillRect(0, 0, width, height);
+            
+            for (let x = 0; x < width; x += pixelSize) {
+                for (let y = 0; y < height; y += pixelSize) {
+                    if (Math.random() < noiseAmount) {
+                        const noiseValue = Math.random() * 0.5 + 0.5;
+                        const r = Math.floor(baseColor[0] + (noiseColor[0] - baseColor[0]) * noiseValue);
+                        const g = Math.floor(baseColor[1] + (noiseColor[1] - baseColor[1]) * noiseValue);
+                        const b = Math.floor(baseColor[2] + (noiseColor[2] - baseColor[2]) * noiseValue);
+                        
+                        ctx.fillStyle = `rgb(${r}, ${g}, ${b})`;
+                        ctx.fillRect(x, y, pixelSize, pixelSize);
+                    }
+                }
+            }
+        }
+        
+        // Generate grass top texture
+        function generateGrassTop(ctx) {
+            const baseColor = [76, 168, 50]; // Bright green
+            const noiseColor = [38, 92, 25]; // Dark green
+            
+            pixelatedNoise(ctx, baseColor, noiseColor, 0.3, 4);
+        }
+        
+        // Generate grass side texture
+        function generateGrassSide(ctx) {
+            const width = ctx.canvas.width;
+            const height = ctx.canvas.height;
+            
+            // Brown dirt base
+            const dirtColor = [150, 108, 65];
+            const dirtNoiseColor = [110, 80, 48];
+            pixelatedNoise(ctx, dirtColor, dirtNoiseColor, 0.3, 4);
+            
+            // Green top
+            const grassColor = [76, 168, 50];
+            const grassNoiseColor = [38, 92, 25];
+            
+            ctx.fillStyle = `rgb(${grassColor[0]}, ${grassColor[1]}, ${grassColor[2]})`;
+            ctx.fillRect(0, 0, width, height / 4);
+            
+            for (let x = 0; x < width; x += 4) {
+                for (let y = 0; y < height / 4; y += 4) {
+                    if (Math.random() < 0.3) {
+                        const r = Math.floor(grassColor[0] + (grassNoiseColor[0] - grassColor[0]) * 0.6);
+                        const g = Math.floor(grassColor[1] + (grassNoiseColor[1] - grassColor[1]) * 0.6);
+                        const b = Math.floor(grassColor[2] + (grassNoiseColor[2] - grassColor[2]) * 0.6);
+                        
+                        ctx.fillStyle = `rgb(${r}, ${g}, ${b})`;
+                        ctx.fillRect(x, y, 4, 4);
+                    }
+                }
+            }
+        }
+        
+        // Generate dirt texture
+        function generateDirt(ctx) {
+            const baseColor = [150, 108, 65]; // Brown
+            const noiseColor = [110, 80, 48]; // Darker brown
+            
+            pixelatedNoise(ctx, baseColor, noiseColor, 0.4, 4);
+        }
+        
+        // Generate stone texture
+        function generateStone(ctx) {
+            const baseColor = [128, 128, 128]; // Gray
+            const noiseColor = [90, 90, 90]; // Darker gray
+            
+            pixelatedNoise(ctx, baseColor, noiseColor, 0.3, 8);
+        }
+        
+        // Generate wood top texture (with rings)
+        function generateWoodTop(ctx) {
+            const width = ctx.canvas.width;
+            const height = ctx.canvas.height;
+            const centerX = width / 2;
+            const centerY = height / 2;
+            
+            // Base wood color
+            const baseColor = [160, 115, 74]; // Light brown
+            ctx.fillStyle = `rgb(${baseColor[0]}, ${baseColor[1]}, ${baseColor[2]})`;
+            ctx.fillRect(0, 0, width, height);
+            
+            // Create rings
+            const ringCount = 3 + Math.floor(Math.random() * 3);
+            const ringSpacing = Math.min(width, height) / (2 * ringCount + 1);
+            
+            for (let i = 0; i < ringCount; i++) {
+                const radius = (i + 1) * ringSpacing;
+                const ringWidth = 3;
+                const darkColor = [120, 85, 55]; // Darker brown for rings
+                
+                ctx.strokeStyle = `rgb(${darkColor[0]}, ${darkColor[1]}, ${darkColor[2]})`;
+                ctx.lineWidth = ringWidth;
+                ctx.beginPath();
+                ctx.arc(centerX, centerY, radius, 0, 2 * Math.PI);
+                ctx.stroke();
+            }
+            
+            // Add some noise
+            const imageData = ctx.getImageData(0, 0, width, height);
+            const data = imageData.data;
+            
+            for (let i = 0; i < data.length; i += 4) {
+                const noise = (Math.random() - 0.5) * 30;
+                
+                data[i] = Math.max(0, Math.min(255, data[i] + noise));
+                data[i + 1] = Math.max(0, Math.min(255, data[i + 1] + noise));
+                data[i + 2] = Math.max(0, Math.min(255, data[i + 2] + noise));
+            }
+            
+            ctx.putImageData(imageData, 0, 0);
+        }
+        
+        // Generate wood side texture (with vertical grain)
+        function generateWoodSide(ctx) {
+            const width = ctx.canvas.width;
+            const height = ctx.canvas.height;
+            
+            // Base wood color
+            const baseColor = [160, 115, 74]; // Light brown
+            ctx.fillStyle = `rgb(${baseColor[0]}, ${baseColor[1]}, ${baseColor[2]})`;
+            ctx.fillRect(0, 0, width, height);
+            
+            // Add vertical grain
+            const darkColor = [120, 85, 55]; // Darker brown for grain
+            
+            for (let x = 0; x < width; x += 4) {
+                if (Math.random() < 0.4) {
+                    const grainWidth = 2 + Math.floor(Math.random() * 3);
+                    ctx.fillStyle = `rgb(${darkColor[0]}, ${darkColor[1]}, ${darkColor[2]})`;
+                    ctx.fillRect(x, 0, grainWidth, height);
+                }
+            }
+            
+            // Add some noise
+            const imageData = ctx.getImageData(0, 0, width, height);
+            const data = imageData.data;
+            
+            for (let i = 0; i < data.length; i += 4) {
+                const noise = (Math.random() - 0.5) * 25;
+                
+                data[i] = Math.max(0, Math.min(255, data[i] + noise));
+                data[i + 1] = Math.max(0, Math.min(255, data[i + 1] + noise));
+                data[i + 2] = Math.max(0, Math.min(255, data[i + 2] + noise));
+            }
+            
+            ctx.putImageData(imageData, 0, 0);
+        }
+        
+        // Generate leaves texture
+        function generateLeaves(ctx) {
+            const width = ctx.canvas.width;
+            const height = ctx.canvas.height;
+            
+            // Base leaf color
+            const baseColor = [60, 143, 36]; // Green
+            const darkColor = [40, 95, 24]; // Darker green
+            
+            pixelatedNoise(ctx, baseColor, darkColor, 0.6, 4);
+            
+            // Add some holes for transparency effect
+            for (let x = 0; x < width; x += 4) {
+                for (let y = 0; y < height; y += 4) {
+                    if (Math.random() < 0.05) {
+                        ctx.clearRect(x, y, 4, 4);
+                    }
+                }
+            }
+        }
+        
+        // Generate all textures when button is clicked
+        document.getElementById('generate-all').addEventListener('click', function() {
+            const grassTopCtx = document.getElementById('grass-top').getContext('2d');
+            const grassSideCtx = document.getElementById('grass-side').getContext('2d');
+            const dirtCtx = document.getElementById('dirt').getContext('2d');
+            const stoneCtx = document.getElementById('stone').getContext('2d');
+            const woodTopCtx = document.getElementById('wood-top').getContext('2d');
+            const woodSideCtx = document.getElementById('wood-side').getContext('2d');
+            const leavesCtx = document.getElementById('leaves').getContext('2d');
+            
+            generateGrassTop(grassTopCtx);
+            generateGrassSide(grassSideCtx);
+            generateDirt(dirtCtx);
+            generateStone(stoneCtx);
+            generateWoodTop(woodTopCtx);
+            generateWoodSide(woodSideCtx);
+            generateLeaves(leavesCtx);
+            
+            // Add download functionality for each canvas
+            setupDownload('grass-top', 'grass_top.jpg');
+            setupDownload('grass-side', 'grass_side.jpg');
+            setupDownload('dirt', 'dirt.jpg');
+            setupDownload('stone', 'stone.jpg');
+            setupDownload('wood-top', 'wood_top.jpg');
+            setupDownload('wood-side', 'wood_side.jpg');
+            setupDownload('leaves', 'leaves.jpg');
+        });
+        
+        // Function to setup download for canvas
+        function setupDownload(canvasId, filename) {
+            const canvas = document.getElementById(canvasId);
+            
+            canvas.addEventListener('contextmenu', function(e) {
+                const link = document.createElement('a');
+                link.download = filename;
+                link.href = canvas.toDataURL('image/jpeg', 0.9);
+                document.body.appendChild(link);
+                link.click();
+                document.body.removeChild(link);
+                e.preventDefault();
+            });
+        }
+    </script>
+</body>
+</html> 
