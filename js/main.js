@@ -9,6 +9,9 @@ if (forceGPU) {
     console.log('Force GPU rendering is enabled');
     GPUHelper.forceGPURendering();
     GPUHelper.addGPUStyles();
+} else {
+    // Still add styles for better performance
+    GPUHelper.addGPUStyles();
 }
 
 // Constants
@@ -40,17 +43,39 @@ const scene = new THREE.Scene();
 const camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 150);
 camera.position.set(WORLD_SIZE * CHUNK_SIZE / 2, 30, WORLD_SIZE * CHUNK_SIZE / 2);
 
-const renderer = new THREE.WebGLRenderer({ 
-    antialias: false,
-    powerPreference: "high-performance", // Explicitly request high-performance GPU
-    precision: "mediump",  // Use medium precision for better performance
+// Load saved graphics quality or use default
+const graphicsQuality = localStorage.getItem('graphics-quality') || 'low';
+
+// Configure renderer based on graphics quality
+const rendererSettings = {
+    antialias: graphicsQuality === 'high',
+    powerPreference: "high-performance", // Always request high-performance GPU
+    precision: CONFIG.PRECISION,
     alpha: false, // Disable alpha for better performance
     stencil: false, // Disable stencil buffer for better performance
-    depth: true // Keep depth testing enabled
-});
+    depth: true, // Keep depth testing enabled
+    failIfMajorPerformanceCaveat: false, // Don't fail if hardware acceleration isn't available
+    premultipliedAlpha: true // Better performance with transparency
+};
+
+const renderer = new THREE.WebGLRenderer(rendererSettings);
+
+// Set size and pixel ratio based on quality
 renderer.setSize(window.innerWidth, window.innerHeight);
-renderer.setPixelRatio(Math.min(window.devicePixelRatio, 1.0)); // Lower pixel ratio for better performance
-renderer.shadowMap.enabled = false;
+const maxPixelRatio = graphicsQuality === 'high' ? 2.0 : (graphicsQuality === 'medium' ? 1.5 : 1.0);
+renderer.setPixelRatio(Math.min(window.devicePixelRatio, maxPixelRatio));
+
+// Configure shadows based on quality
+renderer.shadowMap.enabled = graphicsQuality === 'high';
+if (renderer.shadowMap.enabled) {
+    renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+}
+
+// Apply extra optimizations to the renderer
+renderer.sortObjects = false; // Disable sorting for better performance
+renderer.physicallyCorrectLights = false; // Disable for better performance
+
+// Add renderer to DOM
 document.getElementById('game-container').appendChild(renderer.domElement);
 
 // Textures
@@ -84,30 +109,47 @@ Object.values(textures).forEach(group => {
         texture.repeat.set(1, 1);
         texture.magFilter = THREE.NearestFilter; // Minecraft-like pixelated look
         texture.minFilter = THREE.NearestFilter;
+        
+        // GPU optimizations
+        texture.generateMipmaps = false; // Disable mipmaps for better performance
+        texture.anisotropy = graphicsQuality === 'high' ? 4 : 1; // Anisotropic filtering
     });
 });
 
-// Create materials for each block type
+// Create materials for each block type with GPU optimizations
+function createMaterial(map, transparent = false) {
+    return new THREE.MeshLambertMaterial({ 
+        map: map,
+        transparent: transparent,
+        alphaTest: transparent ? 0.5 : 0,
+        flatShading: true, // Use flat shading for better performance
+        wireframe: false,
+        vertexColors: false,
+        fog: false, // Disable fog for better performance
+        dithering: false // Disable dithering for better performance
+    });
+}
+
 const materials = {
     grass: [
-        new THREE.MeshLambertMaterial({ map: textures.grass.side }), // right
-        new THREE.MeshLambertMaterial({ map: textures.grass.side }), // left
-        new THREE.MeshLambertMaterial({ map: textures.grass.top }), // top
-        new THREE.MeshLambertMaterial({ map: textures.grass.bottom }), // bottom
-        new THREE.MeshLambertMaterial({ map: textures.grass.side }), // front
-        new THREE.MeshLambertMaterial({ map: textures.grass.side }), // back
+        createMaterial(textures.grass.side), // right
+        createMaterial(textures.grass.side), // left
+        createMaterial(textures.grass.top), // top
+        createMaterial(textures.grass.bottom), // bottom
+        createMaterial(textures.grass.side), // front
+        createMaterial(textures.grass.side), // back
     ],
-    dirt: Array(6).fill(new THREE.MeshLambertMaterial({ map: textures.dirt.all })),
-    stone: Array(6).fill(new THREE.MeshLambertMaterial({ map: textures.stone.all })),
+    dirt: Array(6).fill(createMaterial(textures.dirt.all)),
+    stone: Array(6).fill(createMaterial(textures.stone.all)),
     wood: [
-        new THREE.MeshLambertMaterial({ map: textures.wood.side }), // right
-        new THREE.MeshLambertMaterial({ map: textures.wood.side }), // left
-        new THREE.MeshLambertMaterial({ map: textures.wood.top }), // top
-        new THREE.MeshLambertMaterial({ map: textures.wood.top }), // bottom
-        new THREE.MeshLambertMaterial({ map: textures.wood.side }), // front
-        new THREE.MeshLambertMaterial({ map: textures.wood.side }), // back
+        createMaterial(textures.wood.side), // right
+        createMaterial(textures.wood.side), // left
+        createMaterial(textures.wood.top), // top
+        createMaterial(textures.wood.top), // bottom
+        createMaterial(textures.wood.side), // front
+        createMaterial(textures.wood.side), // back
     ],
-    leaves: Array(6).fill(new THREE.MeshLambertMaterial({ map: textures.leaves.all, transparent: true, alphaTest: 0.5 })),
+    leaves: Array(6).fill(createMaterial(textures.leaves.all, true)),
 };
 
 // Create common block geometry
@@ -115,6 +157,9 @@ const blockGeometry = new THREE.BoxGeometry(BLOCK_SIZE, BLOCK_SIZE, BLOCK_SIZE);
 
 // Controls setup
 const controls = new PointerLockControls(camera, document.body);
+
+// Make controls accessible to the settings panel
+window.controls = controls;
 
 // Click anywhere to lock/unlock controls
 document.addEventListener('click', () => {
@@ -142,6 +187,24 @@ scene.add(ambientLight);
 
 const directionalLight = new THREE.DirectionalLight(0xffffff, 0.8);
 directionalLight.position.set(-1, 1, 0.5).normalize();
+
+// Setup shadows if high-quality graphics are enabled
+if (graphicsQuality === 'high') {
+    directionalLight.castShadow = true;
+    directionalLight.shadow.mapSize.width = 1024;
+    directionalLight.shadow.mapSize.height = 1024;
+    directionalLight.shadow.camera.near = 0.5;
+    directionalLight.shadow.camera.far = 500;
+    directionalLight.shadow.bias = -0.001;
+    
+    // Optimize shadow camera frustum
+    const shadowSize = RENDER_DISTANCE / 2;
+    directionalLight.shadow.camera.left = -shadowSize;
+    directionalLight.shadow.camera.right = shadowSize;
+    directionalLight.shadow.camera.top = shadowSize;
+    directionalLight.shadow.camera.bottom = -shadowSize;
+}
+
 scene.add(directionalLight);
 
 // Simple sky color
@@ -436,6 +499,20 @@ function breakBlock() {
     }
 }
 
+// Keyboard shortcut for settings panel (Escape key)
+function toggleSettingsPanel() {
+    const settingsPanel = document.getElementById('settings-panel');
+    if (settingsPanel) {
+        const isVisible = settingsPanel.style.display === 'block';
+        settingsPanel.style.display = isVisible ? 'none' : 'block';
+        
+        // If opening settings, unlock controls
+        if (!isVisible) {
+            controls.unlock();
+        }
+    }
+}
+
 // Controls
 function handleKeyDown(event) {
     state.keysPressed[event.code] = true;
@@ -456,6 +533,12 @@ function handleKeyDown(event) {
                 }
             });
         }
+    }
+    
+    // Toggle settings with Tab key
+    if (event.code === 'Tab') {
+        event.preventDefault(); // Prevent default tab behavior
+        toggleSettingsPanel();
     }
     
     // Hide controls hint after any key press
@@ -618,34 +701,146 @@ let frameCount = 0;
 let fpsTime = 0;
 let fps = 0;
 
-// Add GPU status detection after renderer initialization
+// Update GPU status detection after renderer initialization
 function checkGPUStatus() {
-    const gl = renderer.getContext();
-    let gpuInfo = "Unknown";
+    // Get detailed GPU info
+    const gpuInfo = GPUHelper.getGPUInfo();
+    const isGPU = gpuInfo.isGPU || GPUHelper.detectGPU();
     
-    const debugInfo = gl.getExtension('WEBGL_debug_renderer_info');
-    if (debugInfo) {
-        const vendor = gl.getParameter(debugInfo.UNMASKED_VENDOR_WEBGL);
-        const renderer = gl.getParameter(debugInfo.UNMASKED_RENDERER_WEBGL);
+    // Display GPU info in console
+    console.log('GPU Info:', gpuInfo);
+    
+    // Basic info for UI display
+    let displayInfo = "Unknown";
+    let emoji = "❓";
+    
+    if (gpuInfo.supported) {
+        // Extract the GPU name - try to get just the model name
+        let gpuName = gpuInfo.rendererUnmasked || gpuInfo.renderer || "Unknown";
         
-        gpuInfo = `${vendor} - ${renderer}`;
+        // Try to simplify the name by extracting the important parts
+        const simplifiedName = simplifyGPUName(gpuName);
         
-        // Look for indicators of GPU usage
-        const isGPU = /(nvidia|amd|radeon|intel|apple gpu)/i.test(gpuInfo.toLowerCase());
+        // Set the emoji based on detection
+        emoji = isGPU ? "✅" : "❌";
         
-        // Display status
+        // Format the display string
+        displayInfo = `${emoji} ${simplifiedName}`;
+        
+        // Color based on whether it's a real GPU
+        const color = isGPU ? '#8eff8e' : '#ff8e8e';
+        
+        // Update the UI
         const gpuStatus = document.getElementById('gpu-status');
         if (gpuStatus) {
-            gpuStatus.textContent = `GPU: ${isGPU ? '✓ ' : '✗ '}${gpuInfo.split(' ')[0]}`;
-            gpuStatus.style.color = isGPU ? '#8eff8e' : '#ff8e8e';
+            gpuStatus.textContent = `GPU: ${displayInfo}`;
+            gpuStatus.style.color = color;
+            
+            // Add title with full info for hover
+            gpuStatus.title = `Vendor: ${gpuInfo.vendorUnmasked || gpuInfo.vendor}\nRenderer: ${gpuInfo.rendererUnmasked || gpuInfo.renderer}`;
+            
+            // Add click handler to show more details
+            gpuStatus.style.cursor = 'pointer';
+            gpuStatus.addEventListener('click', () => {
+                alert(`GPU Details:\n\nVendor: ${gpuInfo.vendorUnmasked || gpuInfo.vendor}\nRenderer: ${gpuInfo.rendererUnmasked || gpuInfo.renderer}\nUsing Hardware Acceleration: ${isGPU ? 'Yes' : 'No'}\nMax Texture Size: ${gpuInfo.maxTextureSize}`);
+            });
         }
         
-        console.log('GPU Info:', gpuInfo);
-        console.log('Using dedicated GPU:', isGPU);
+        // Show warning if software rendering is detected
+        if (!isGPU && !forceGPU) {
+            const gpuRendererName = gpuInfo.rendererUnmasked || gpuInfo.renderer || '';
+            const isSoftwareRenderer = 
+                gpuRendererName.toLowerCase().includes('swiftshader') || 
+                gpuRendererName.toLowerCase().includes('software') ||
+                gpuRendererName.toLowerCase().includes('llvmpipe');
+                
+            if (isSoftwareRenderer) {
+                showGPUWarning();
+            }
+        }
     } else {
-        console.warn('WebGL debug info not available');
-        document.getElementById('gpu-status').textContent = 'GPU Status: Info not available';
+        // No WebGL support
+        document.getElementById('gpu-status').textContent = 'GPU: ❌ Not Available';
+        document.getElementById('gpu-status').style.color = '#ff8e8e';
     }
+}
+
+// Function to show GPU warning
+function showGPUWarning() {
+    const gpuWarning = document.getElementById('gpu-warning');
+    if (gpuWarning) {
+        gpuWarning.style.display = 'block';
+        
+        // Add event listener to close button
+        const closeButton = document.getElementById('close-gpu-warning');
+        if (closeButton) {
+            closeButton.addEventListener('click', () => {
+                gpuWarning.style.display = 'none';
+            });
+        }
+        
+        // Add event listener to enable GPU button
+        const enableGPUButton = document.getElementById('enable-gpu');
+        if (enableGPUButton) {
+            enableGPUButton.addEventListener('click', () => {
+                // Enable GPU acceleration
+                localStorage.setItem('force-gpu', 'true');
+                
+                // Update settings dropdown if it exists
+                const forceGPUSelect = document.getElementById('force-gpu');
+                if (forceGPUSelect) {
+                    forceGPUSelect.value = 'force';
+                }
+                
+                // Apply GPU acceleration now
+                GPUHelper.forceGPURendering();
+                
+                // Close the warning
+                gpuWarning.style.display = 'none';
+                
+                // Show confirmation message
+                alert('GPU acceleration has been enabled. The game will now attempt to use your graphics card for better performance.');
+                
+                // Suggest reloading for best effect
+                if (confirm('For best results, the page should be reloaded. Would you like to reload now?')) {
+                    location.reload();
+                }
+            });
+        }
+    }
+}
+
+// Simplify GPU name for display
+function simplifyGPUName(fullName) {
+    // No name available
+    if (!fullName || fullName === "Unknown") return "Unknown GPU";
+    
+    // Convert to lowercase for easier matching
+    const lowerName = fullName.toLowerCase();
+    
+    // Extract the relevant part based on common GPU naming patterns
+    if (lowerName.includes('nvidia') || lowerName.includes('geforce')) {
+        // For NVIDIA GPUs, try to extract the model number (GTX/RTX + numbers)
+        const match = fullName.match(/(RTX|GTX|GT)\s*\d+/i);
+        return match ? match[0].toUpperCase() : "NVIDIA";
+    } 
+    else if (lowerName.includes('amd') || lowerName.includes('radeon')) {
+        // For AMD GPUs
+        const match = fullName.match(/(Radeon|RX|HD|R9|R7|R5)\s*\d+/i);
+        return match ? match[0] : "AMD";
+    }
+    else if (lowerName.includes('intel')) {
+        // For Intel GPUs
+        const match = fullName.match(/(HD|UHD|Iris)\s*(Graphics)?\s*\d+/i);
+        return match ? match[0] : "Intel";
+    }
+    else if (lowerName.includes('apple')) {
+        return "Apple GPU";
+    }
+    
+    // If we can't identify it specifically, return first two words
+    const words = fullName.split(' ');
+    return words.length > 1 ? `${words[0]} ${words[1]}` : fullName;
 }
 
 // Check GPU status after setup

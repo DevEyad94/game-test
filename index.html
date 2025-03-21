@@ -16,13 +16,14 @@
             height: 100%; 
         }
         #crosshair {
-            position: absolute;
+            position: fixed;
             top: 50%;
             left: 50%;
             width: 20px;
             height: 20px;
             transform: translate(-50%, -50%);
             pointer-events: none;
+            z-index: 500;
         }
         #crosshair::before, #crosshair::after {
             content: "";
@@ -40,7 +41,7 @@
             top: 9px;
         }
         #inventory {
-            position: absolute;
+            position: fixed;
             bottom: 10px;
             left: 50%;
             transform: translateX(-50%);
@@ -49,6 +50,7 @@
             padding: 5px;
             background-color: rgba(0, 0, 0, 0.5);
             border-radius: 5px;
+            z-index: 1000;
         }
         .inventory-slot {
             width: 50px;
@@ -64,7 +66,7 @@
             background-color: rgba(255, 255, 255, 0.4);
         }
         #fps-counter {
-            position: absolute;
+            position: fixed;
             top: 10px;
             left: 10px;
             background-color: rgba(0, 0, 0, 0.5);
@@ -72,10 +74,11 @@
             padding: 5px 10px;
             border-radius: 5px;
             font-family: monospace;
+            z-index: 900;
         }
         
         #gpu-status {
-            position: absolute;
+            position: fixed;
             top: 40px;
             left: 10px;
             background-color: rgba(0, 0, 0, 0.5);
@@ -83,11 +86,12 @@
             padding: 5px 10px;
             border-radius: 5px;
             font-family: monospace;
+            z-index: 900;
         }
         
         /* Settings Panel */
         #settings-button {
-            position: absolute;
+            position: fixed;
             top: 10px;
             right: 10px;
             background-color: rgba(0, 0, 0, 0.5);
@@ -97,51 +101,71 @@
             cursor: pointer;
             font-family: monospace;
             border: none;
+            z-index: 900;
         }
         #settings-panel {
-            position: absolute;
+            position: fixed;
             top: 50%;
             left: 50%;
-            transform: translate(-50%, -50%);
-            background-color: rgba(0, 0, 0, 0.8);
+            transform: translate(-50%, 20%);
+            background-color: rgba(0, 0, 0, 0.9);
             color: white;
             padding: 20px;
             border-radius: 10px;
             min-width: 300px;
+            max-width: 90%;
+            max-height: 90vh;
+            overflow-y: auto;
             display: none;
-            z-index: 1000;
+            z-index: 2000;
+            font-size: 14px;
+            box-shadow: 0 0 20px rgba(0,0,0,0.5);
+            border: 1px solid rgba(255,255,255,0.1);
         }
         #settings-panel h2 {
             text-align: center;
             margin-top: 0;
+            color: #4CAF50;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.2);
+            padding-bottom: 10px;
+            margin-bottom: 15px;
+        }
+        #settings-panel h3 {
+            margin-top: 15px;
+            margin-bottom: 10px;
+            color: #4CAF50;
+            border-top: 1px solid rgba(255, 255, 255, 0.1);
+            padding-top: 10px;
         }
         .setting-row {
-            margin: 10px 0;
+            margin-bottom: 15px;
             display: flex;
-            justify-content: space-between;
+            flex-wrap: wrap;
             align-items: center;
+            justify-content: space-between;
         }
         .setting-row label {
             margin-right: 10px;
+            min-width: 120px;
         }
         .setting-row input, .setting-row select {
-            width: 100px;
+            flex: 1;
         }
         #settings-panel button {
-            display: block;
-            margin: 20px auto 0;
-            padding: 8px 15px;
             background-color: #4CAF50;
             border: none;
             color: white;
+            padding: 8px 15px;
+            margin: 5px;
             border-radius: 5px;
             cursor: pointer;
+            width: 45%;
         }
         #settings-panel button:hover {
             background-color: #45a049;
         }
         #controls-hint {
-            position: absolute;
+            position: fixed;
             bottom: 80px;
             left: 50%;
             transform: translateX(-50%);
@@ -155,6 +179,7 @@
             flex-direction: column;
             gap: 5px;
             font-size: 14px;
+            z-index: 1000;
         }
         #controls-hint div {
             display: flex;
@@ -172,6 +197,64 @@
             line-height: 30px;
             font-weight: bold;
         }
+        #gpu-warning {
+            position: fixed;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            background-color: rgba(0, 0, 0, 0.9);
+            color: white;
+            padding: 20px;
+            border-radius: 10px;
+            z-index: 2000;
+            max-width: 400px;
+            text-align: center;
+            display: none;
+            font-family: Arial, sans-serif;
+            border: 2px solid #ff5555;
+        }
+        #gpu-warning h3 {
+            color: #ff5555;
+            margin-top: 0;
+        }
+        #gpu-warning button {
+            background-color: #4CAF50;
+            border: none;
+            color: white;
+            padding: 8px 15px;
+            margin: 5px;
+            border-radius: 5px;
+            cursor: pointer;
+        }
+        #gpu-warning button:hover {
+            background-color: #45a049;
+        }
+        .controls-key {
+            display: inline-block;
+            padding: 2px 8px;
+            background-color: rgba(255, 255, 255, 0.2);
+            border: 2px solid rgba(255, 255, 255, 0.5);
+            border-radius: 5px;
+            text-align: center;
+            font-weight: bold;
+            margin: 0 5px;
+        }
+        .settings-buttons {
+            display: flex;
+            justify-content: space-between;
+            margin-top: 20px;
+        }
+        #close-settings {
+            background-color: #777;
+        }
+        #jump-height-value, #render-distance-value {
+            margin-left: 10px;
+            min-width: 30px;
+            text-align: center;
+            background: rgba(255, 255, 255, 0.2);
+            padding: 2px 5px;
+            border-radius: 3px;
+        }
     </style>
 </head>
 <body>
@@ -182,7 +265,9 @@
     <button id="settings-button">Settings</button>
     
     <div id="settings-panel">
-        <h2>Performance Settings</h2>
+        <h2>Game Settings</h2>
+        
+        <h3>Performance</h3>
         <div class="setting-row">
             <label for="render-distance">Render Distance:</label>
             <input type="range" id="render-distance" min="20" max="80" value="40">
@@ -198,13 +283,22 @@
             </select>
         </div>
         <div class="setting-row">
-            <label>Graphics Quality:</label>
+            <label for="graphics-quality">Graphics Quality:</label>
             <select id="graphics-quality">
                 <option value="low" selected>Low</option>
                 <option value="medium">Medium</option>
                 <option value="high">High</option>
             </select>
         </div>
+        
+        <h3>Controls</h3>
+        <div class="setting-row">
+            <label for="jump-height">Jump Height:</label>
+            <input type="range" id="jump-height" min="10" max="50" value="30">
+            <span id="jump-height-value">30</span>
+        </div>
+        
+        <h3>Advanced</h3>
         <div class="setting-row">
             <label>Force GPU Acceleration:</label>
             <select id="force-gpu">
@@ -212,13 +306,11 @@
                 <option value="force">Force GPU (Chrome)</option>
             </select>
         </div>
-        <div class="setting-row">
-            <label for="jump-height">Jump Height:</label>
-            <input type="range" id="jump-height" min="10" max="50" value="30">
-            <span id="jump-height-value">30</span>
+        
+        <div class="settings-buttons">
+            <button id="apply-settings">Apply & Restart</button>
+            <button id="close-settings">Close</button>
         </div>
-        <button id="apply-settings">Apply & Restart</button>
-        <button id="close-settings">Close</button>
     </div>
     
     <div id="inventory">
@@ -235,7 +327,18 @@
         <div><span class="key">S</span> <span>Backward</span></div>
         <div><span class="key">D</span> <span>Right</span></div>
         <div><span class="key" style="width: 60px;">Space</span> <span>Jump</span></div>
+        <div><span class="key" style="width: 40px;">Tab</span> <span>Settings</span></div>
         <div><span class="key">H</span> <span>Toggle Controls</span></div>
+    </div>
+    
+    <div id="gpu-warning">
+        <h3>Warning: Software Rendering Detected</h3>
+        <p>Your system is currently using software rendering. This may result in reduced performance and visual quality.</p>
+        <p>Would you like to try forcing GPU acceleration?</p>
+        <div>
+            <button id="enable-gpu">Enable GPU Acceleration</button>
+            <button id="close-gpu-warning">No Thanks</button>
+        </div>
     </div>
     
     <script type="importmap">
@@ -261,6 +364,11 @@
             const graphicsQualitySelect = document.getElementById('graphics-quality');
             const forceGPUSelect = document.getElementById('force-gpu');
             
+            // Prevent clicks inside settings panel from propagating
+            settingsPanel.addEventListener('click', (event) => {
+                event.stopPropagation();
+            });
+            
             // Update render distance value display
             renderDistanceSlider.addEventListener('input', () => {
                 renderDistanceValue.textContent = renderDistanceSlider.value;
@@ -271,13 +379,36 @@
                 jumpHeightValue.textContent = jumpHeightSlider.value;
             });
             
-            // Show/hide settings panel
+            // Show/hide settings panel from button
             settingsButton.addEventListener('click', () => {
                 settingsPanel.style.display = 'block';
+                document.getElementById('crosshair').style.display = 'none';
+                
+                // If game controls exist, unlock them
+                if (window.controls && typeof window.controls.unlock === 'function') {
+                    window.controls.unlock();
+                }
             });
             
             closeButton.addEventListener('click', () => {
                 settingsPanel.style.display = 'none';
+                document.getElementById('crosshair').style.display = 'block';
+            });
+            
+            // Handle clicking outside the settings panel to close it
+            document.addEventListener('click', (event) => {
+                const clickedElement = event.target;
+                
+                // Check if the click is outside the settings panel and the settings button
+                const isOutsideSettings = !settingsPanel.contains(clickedElement) && 
+                                          clickedElement !== settingsButton &&
+                                          !settingsButton.contains(clickedElement);
+                                          
+                // If settings are visible and click is outside, close settings
+                if (settingsPanel.style.display === 'block' && isOutsideSettings) {
+                    settingsPanel.style.display = 'none';
+                    document.getElementById('crosshair').style.display = 'block';
+                }
             });
             
             // Apply settings
@@ -332,6 +463,31 @@
             if (forcedGPU === 'true') {
                 forceGPUSelect.value = 'force';
             }
+            
+            // Listen for Tab key to open settings panel
+            document.addEventListener('keydown', (event) => {
+                if (event.key === 'Tab') {
+                    event.preventDefault();
+                    if (settingsPanel.style.display !== 'block') {
+                        settingsPanel.style.display = 'block';
+                        document.getElementById('crosshair').style.display = 'none';
+                        
+                        // If game controls exist, unlock them
+                        if (window.controls && typeof window.controls.unlock === 'function') {
+                            window.controls.unlock();
+                        }
+                    } else {
+                        settingsPanel.style.display = 'none';
+                        document.getElementById('crosshair').style.display = 'block';
+                    }
+                }
+                
+                // Close settings panel when Escape key is pressed
+                if (event.key === 'Escape' && settingsPanel.style.display === 'block') {
+                    settingsPanel.style.display = 'none';
+                    document.getElementById('crosshair').style.display = 'block';
+                }
+            });
         });
     </script>
     <script type="module" src="js/main.js"></script>
